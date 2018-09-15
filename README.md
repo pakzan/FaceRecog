@@ -2,6 +2,7 @@
 Recognizes classmates and displays their names.
 
 This program requires face_recognition and cv2 library to be installed.
+
 Run instruction:
 1. Paste the faces you want to recognize into classmate folder. The images have to be in JPG format with file name NAME.jpg.
 2. Run the file PreSavedFace.py to encode and store the faces.
