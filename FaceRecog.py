@@ -4,6 +4,7 @@ import os
 import glob
 import pickle
 import numpy as np
+import math
 import sys
 
 from imutils.video import WebcamVideoStream
@@ -96,11 +97,21 @@ def ReadWriteFace():
         # Draw a box around the face
         cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
+        # Calculate distance and angle from camera
+        focal_length = 600
+        avg_face_height = 18
+        img_height = bottom - top
+        img_angle = (right + left) / 2 - frame.shape[1] / 2
+
+        distance = focal_length * avg_face_height / img_height
+        angle = math.degrees(math.atan(img_angle / focal_length))
+
         # Draw a label with a name below the face
-        SetLabel(frame, name, (left, bottom))
+        SetLabel(frame, name + ', ' + str(int(distance)) +
+                 ', ' + str(int(angle)), (left, bottom))
 
     # Show current registered player
-    for index, player_name in enumerate(np.unique(player_names)):
+    for index, player_name in enumerate(player_names):
         SetLabel(frame, 'Player ' + str(index + 1) + ': ' +
                  player_name, (0, top_padding + text_height * (index + 1)))
 
