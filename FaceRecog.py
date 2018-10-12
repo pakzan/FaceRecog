@@ -69,11 +69,16 @@ def DispInfo(frame):
 
 def ProcessFrame(rgb_frame):
     # Find all the faces and face encodings in the current frame of video
-    face_locations = face_recognition.face_locations(rgb_frame)
-    # Using GPU
-    #face_locations = face_recognition.batch_face_locations(rgb_frame, 5)
-    #face_encodings = face_recognition.face_encodings(rgb_frame, face_locations, 5)
-    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+    if HAS_GPU:
+        # Use GPU
+        face_locations = face_recognition.face_locations(frame, model="cnn")
+        face_encodings = face_recognition.face_encodings(
+            rgb_frame, face_locations, 10)
+    else:
+        # Use CPU
+        face_locations = face_recognition.face_locations(rgb_frame)
+        face_encodings = face_recognition.face_encodings(
+            rgb_frame, face_locations)
 
     face_names = []
     for face_encoding in face_encodings:
@@ -132,7 +137,7 @@ start_game = False
 player_info = {}
 video_capture = cv2.VideoCapture(0)
 outFrame = []
-
+HAS_GPU = False
 
 def main(qFrame):
     global start_game, known_face_names, known_face_encodings, process_this_frame
