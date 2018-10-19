@@ -1,4 +1,5 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify
+import pickle
 
 app = Flask(__name__)
 
@@ -15,6 +16,11 @@ def video_feed():
     return Response(FaceRecog.getFrameOrInfo(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/player_info')
+def info():
+    with open('player_info.pkl', 'rb') as f:
+        player_info = pickle.load(f)
+        return jsonify(player_info)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, threaded=True)

@@ -7,6 +7,7 @@ import numpy as np
 import math
 import sys
 import time
+from PIL import Image
 
 def SetLabel(frame, label, point):
     fontface = cv2.FONT_HERSHEY_SIMPLEX
@@ -71,7 +72,8 @@ def ProcessFrame(rgb_frame):
     # Find all the faces and face encodings in the current frame of video
     if HAS_GPU:
         # Use GPU
-        face_locations = face_recognition.face_locations(frame, model="cnn")
+        face_locations = face_recognition.face_locations(
+            rgb_frame, model="cnn")
         face_encodings = face_recognition.face_encodings(
             rgb_frame, face_locations, 10)
     else:
@@ -98,7 +100,10 @@ def ReadWriteFace():
     global process_this_frame, face_locations, face_encodings, face_names, outFrame
 
     # Grab a single frame of video
-    ret, frame = video_capture.read()
+    ret = False
+    while not ret:
+        ret, frame = video_capture.read()
+
     #Flip frame
     frame = cv2.flip(frame, 1)    
     # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
@@ -161,6 +166,15 @@ def main(qFrame):
             # Release handle to the webcam
             video_capture.release()
             cv2.destroyAllWindows()
+
+            # Set Buffering image if video streaming ended
+            ret, bufImg = cv2.imencode('.jpg', cv2.imread(
+                'casino.jpg', cv2.IMREAD_UNCHANGED))
+            qFrame.put(bufImg)
+
+            #store player info into a file to be retrive later
+            with open('player_info.pkl', 'wb') as f:
+                pickle.dump(player_info, f, pickle.HIGHEST_PROTOCOL)
             return player_info
         elif len(player_info) == 0:
             missing_time = round(time.time())
@@ -214,7 +228,7 @@ def getFrameOrInfo():
             # Yield jpeg frame if queue is not empty
             jpegFrame = qFrame.get(False)
             yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + jpegFrame.tobytes() + b'\r\n')
+                   b'Content-Type: image/jpeg\r\n\r\n' + jpegFrame.tobytes() + b'\r\n')
         except queue.Empty:
             pass
 
@@ -224,4 +238,4 @@ def getFrameOrInfo():
     if len(player_info) != 0:
         return player_info
     else:
-        return -1
+        return - 1
