@@ -1,0 +1,23 @@
+<html>
+  <head>
+    <title>Video Streaming Demonstration</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <h1>Video Streaming Demonstration</h1>
+    <img id="webcam" src="{{ url_for('video_feed') }}">
+  </body>
+  <script type="text/javascript">
+  	checkForChanges()
+  	function checkForChanges()
+	{
+  		if(100 < $('#webcam').height() && $('#webcam').height() < 300){
+	  		console.log($('#webcam').height());
+	  		$(location).attr('href','/player_info');
+  		}
+
+	    setTimeout(checkForChanges, 500);
+	}
+  	
+  </script>
+</html>
