@@ -10,8 +10,6 @@ import time
 from PIL import Image
 # for voice input
 import speech_recognition as sr
-import threading
-import queue
 
 
 def HasKeywords(texts, keywords):
@@ -75,6 +73,9 @@ def UpdateStareList(frame, rect, face_encoding, name, starer_idxes):
             if (len(face_distances) == 0 or min(face_distances) > 0.5) and time.time() - stare_time[index] > 1:
                 player_names.append(name)
                 player_encodings.append(face_encoding)
+                # put voice text
+                globals()['qStatus'].put(
+                    "Player " + str(len(player_names)) + " Registered")
         else:
             # if the person not in staring list
             # add face encondings and stare time to lists
@@ -199,7 +200,7 @@ def ReadWriteFace():
     rgb_frame = frame[:, :, ::-1]
 
     # Process frame every 0.2 seconds
-    if time.time() - prev_frame_time > 0.2:
+    if time.time() - prev_frame_time > 0:
         face_locations, face_encodings, face_names = ProcessFrame(rgb_frame)
         prev_frame_time = time.time()
 
@@ -211,37 +212,9 @@ def ReadWriteFace():
     # Display the resulting image
     cv2.imshow('Casino', frame)
 
-    #Send frame as jpg to queue(for Flask)
+    #put frame as jpg to queue(for Flask)
     ret, jpeg = cv2.imencode('.jpg', frame)
-    return jpeg
-
-def ProcessFrame(rgb_frame):
-    # Find all the faces and face encodings in the current frame of video
-    if HAS_GPU:
-        # Use GPU
-        face_locations = face_recognition.face_locations(
-            rgb_frame, model="cnn")
-        face_encodings = face_recognition.face_encodings(
-            rgb_frame, face_locations, 10)
-    else:
-        # Use CPU
-        face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(
-            rgb_frame, face_locations)
-
-    face_names = []
-    for face_encoding in face_encodings:
-        name = "Unknown"
-
-        # See if the face is a match for the known face(s)
-        face_distances = face_recognition.face_distance(
-            known_face_encodings, face_encoding)
-        if len(face_distances) != 0 and min(face_distances) < 0.5:
-            name_index = np.argmin(face_distances)
-            name = known_face_names[name_index]
-
-        face_names.append(name)
-    return face_locations, face_encodings, face_names
+    return b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n'
 
 # Initialize some variables
 face_locations = []
@@ -258,14 +231,15 @@ start_game = False
 starer_encodings = []
 stare_time = []
 player_info = {}
-video_capture = cv2.VideoCapture(0)
-HAS_GPU = False
+HAS_GPU = True
 
 #voice command
 recognizer = sr.Recognizer()
 microphone = sr.Microphone(device_index=2)
 
-def main(qFrame):
+def main(qFrame, tmpStatus, qPlayer):
+    globals()['video_capture'] = cv2.VideoCapture(0)
+    globals()['qStatus'] = tmpStatus
     # voice command
     qCommand = queue.Queue()
     thread = threading.Thread(target=Voice2Text,
@@ -285,26 +259,39 @@ def main(qFrame):
 
     #set window size
     cv2.namedWindow("Casino", cv2.WINDOW_AUTOSIZE)
+    # put voice 
+    qStatus.put("Welcome")
+    qStatus.put("Welcome to the Casino.")
+    qStatus.put("Please look into the camera to register.")
+
     while True:
         # store return value to queue (For Flask)
         qFrame.put(ReadWriteFace())
 
         #if found player for more than 2 seconds, return player_info to caller
         if start_game and time.time() - missing_time > 2:
-            # Release handle to the webcam
-            video_capture.release()
-            cv2.destroyAllWindows()
+            # put voice
+            qStatus.put("All players located. Distributing cards.")
+            
+            #provide enough time for the bot to speak
+            time.sleep(2)
 
             # Set Buffering image if video streaming ended
             ret, bufImg = cv2.imencode('.jpg', cv2.imread(
                 'casino.jpg', cv2.IMREAD_UNCHANGED))
-            qFrame.put(bufImg)
+            qFrame.put(
+                b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + bufImg.tobytes() + b'\r\n')
+            qFrame.put(
+                b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + bufImg.tobytes() + b'\r\n')
 
             print(player_info)
-            #store player info into a file to be retrive later
-            with open('player_info.pkl', 'wb') as f:
-                pickle.dump(player_info, f, pickle.HIGHEST_PROTOCOL)
-                
+            #store player info into a queue to be retrive from flask
+            qPlayer.put(player_info)
+
+            # Release handle to the webcam
+            video_capture.release()
+            cv2.destroyAllWindows()
+
             return player_info
         elif len(player_info) == 0:
             missing_time = time.time()
@@ -325,6 +312,9 @@ def main(qFrame):
                 if player_name in face_names:
                     player_names.pop(index)
                     player_encodings.pop(index)
+                else:
+                    # put voice text
+                    qStatus.put("Player " + str(index) + " Registered")
 
             player_names.extend(face_names)
             player_encodings.extend(face_encodings)
@@ -340,9 +330,21 @@ def main(qFrame):
             #make sure the next frame will be executed
             prev_frame_time = 0
             start_game = True
+
+            # put voice text
+            qStatus.put("Game Start")
+            qStatus.put("Locating all players. Please sit still.")
+
         # Hit 'r' to restart
         elif key == ord('r'):
-            os.execl(sys.executable, sys.executable, *sys.argv)
+            globals()['known_face_names'] = []
+            globals()['known_face_encodings'] = []
+            globals()['player_encodings']  = []
+            globals()['player_names']  = []
+            globals()['player_info'] = {}
+            globals()['start_game']  = False
+
+            # os.execl(sys.executable, sys.executable, *sys.argv)
         # Hit 'q' or cross button to quit
         elif key == ord('q') or cv2.getWindowProperty('Casino', cv2.WINDOW_AUTOSIZE) < 0:
             break
@@ -355,24 +357,13 @@ def main(qFrame):
 # Parse Jpeg Frame to Flask
 import threading
 import queue
-def getFrameOrInfo():
-    qFrame = queue.Queue()
-    thread = threading.Thread(target=main,
-                              name=main, args=(qFrame,))
-    thread.start()
-    
-    while thread.isAlive():
-        try:
-            # Yield jpeg frame if queue is not empty
-            jpegFrame = qFrame.get(False)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + jpegFrame.tobytes() + b'\r\n')
-        except queue.Empty:
-            pass
+from multiprocessing import Process, Queue
 
 if __name__ == "__main__":
-    qFrame = queue.Queue()
-    thread = threading.Thread(target=main,
-                              name=main, args=(qFrame,))
-    thread.start()
+    qFrame = Queue()
+    qStatus = Queue()
+    qPlayer = Queue()
+    process = Process(target=main, args=(
+        qFrame, qStatus, qPlayer))
+    process.start()
     

@@ -11,6 +11,9 @@
   	checkForChanges()
   	function checkForChanges()
 	{
+		//get player info if positions of all players found
+		//flask server will change a smaller image after all players found
+		//check for the image size every 0.5 second
   		if(100 < $('#webcam').height() && $('#webcam').height() < 300){
 	  		console.log($('#webcam').height());
 	  		$(location).attr('href','/player_info');
@@ -19,5 +22,13 @@
 	    setTimeout(checkForChanges, 500);
 	}
   	
+  	//get current status from flask server
+  	//text to speech API
+  	var source = new EventSource("/audio_feed");
+    source.onmessage = function(event) {
+    	msg = new SpeechSynthesisUtterance(event.data)
+    	window.speechSynthesis.speak(msg)
+    	console.log(event.data)
+    }
   </script>
 </html>
