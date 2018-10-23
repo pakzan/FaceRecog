@@ -42,6 +42,7 @@ def Voice2Text(qCommand):
                 audio = recognizer.listen(source, 2, 1)
                 texts = recognizer.recognize_google(audio, show_all=True)
                 qCommand.put(texts)
+                print(texts)
             except (sr.RequestError, sr.UnknownValueError, sr.WaitTimeoutError) as e:
                 print("Voice Error")
             
@@ -200,7 +201,7 @@ def ReadWriteFace():
     rgb_frame = frame[:, :, ::-1]
 
     # Process frame every 0.2 seconds
-    if time.time() - prev_frame_time > 0:
+    if time.time() - prev_frame_time > PROCESS_FRAME_PERIOD:
         face_locations, face_encodings, face_names = ProcessFrame(rgb_frame)
         prev_frame_time = time.time()
 
@@ -232,6 +233,7 @@ starer_encodings = []
 stare_time = []
 player_info = {}
 HAS_GPU = True
+PROCESS_FRAME_PERIOD = 0
 
 #voice command
 recognizer = sr.Recognizer()
@@ -272,26 +274,17 @@ def main(qFrame, tmpStatus, qPlayer):
         if start_game and time.time() - missing_time > 2:
             # put voice
             qStatus.put("All players located. Distributing cards.")
-            
-            #provide enough time for the bot to speak
-            time.sleep(2)
 
-            # Set Buffering image if video streaming ended
-            ret, bufImg = cv2.imencode('.jpg', cv2.imread(
-                'casino.jpg', cv2.IMREAD_UNCHANGED))
-            qFrame.put(
-                b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + bufImg.tobytes() + b'\r\n')
-            qFrame.put(
-                b'--frame\r\n'b'Content-Type: image/jpeg\r\n\r\n' + bufImg.tobytes() + b'\r\n')
-
-            print(player_info)
             #store player info into a queue to be retrive from flask
+            #store twice to make sure main thread got the value
             qPlayer.put(player_info)
+            qPlayer.put(player_info)
+            print(player_info)
 
             # Release handle to the webcam
             video_capture.release()
             cv2.destroyAllWindows()
-
+            
             return player_info
         elif len(player_info) == 0:
             missing_time = time.time()
@@ -314,10 +307,15 @@ def main(qFrame, tmpStatus, qPlayer):
                     player_encodings.pop(index)
                 else:
                     # put voice text
-                    qStatus.put("Player " + str(index) + " Registered")
+                    qStatus.put("Player " + str(index + 1) + " Registered")
 
             player_names.extend(face_names)
             player_encodings.extend(face_encodings)
+
+            # status for register 1st player
+            if len(player_names) == 1:
+                # put voice text
+                qStatus.put("Player " + str(1) + " Registered")
 
         # Hit <Enter> on the keyboard to confirm player and start play
         # Voice command with 'start' / 'stop' / 'game' will do the same thing

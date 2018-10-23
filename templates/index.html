@@ -7,20 +7,14 @@
     <h1>Video Streaming Demonstration</h1>
     <img id="webcam" src="{{ url_for('video_feed') }}">
   </body>
-  <script type="text/javascript">
-  	checkForChanges()
-  	function checkForChanges()
-	{
-		//get player info if positions of all players found
-		//flask server will change a smaller image after all players found
-		//check for the image size every 0.5 second
-  		if(100 < $('#webcam').height() && $('#webcam').height() < 300){
-	  		console.log($('#webcam').height());
-	  		$(location).attr('href','/player_info');
-  		}
-
-	    setTimeout(checkForChanges, 500);
-	}
+  <script type="text/javascript">  	
+	//get player info if positions of all players found
+  	var source_info = new EventSource("/player_info");
+    source_info.onmessage = function(event) {
+    	$('#webcam').remove()
+    	console.log(event.data)
+	  	// $(location).attr('href','/player_info')	
+    }
   	
   	//get current status from flask server
   	//text to speech API
