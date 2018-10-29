@@ -10,7 +10,15 @@ import time
 from PIL import Image
 # for voice input
 import speech_recognition as sr
+# key input
+from pynput import keyboard
 
+
+def OnPress(key):
+    try:
+        globals()['key'] = key.char  # single-char
+    except:
+        globals()['key'] = key.name  # other keys
 
 def HasKeywords(texts, keywords):
     if texts != []:
@@ -227,13 +235,14 @@ player_encodings = []
 player_names = []
 prev_frame_time = time.time()
 start_game = False
+key = ''
 
 #additional feature
 starer_encodings = []
 stare_time = []
 player_info = {}
-HAS_GPU = True
-PROCESS_FRAME_PERIOD = 0
+HAS_GPU = False
+PROCESS_FRAME_PERIOD = 0.2
 
 #voice command
 recognizer = sr.Recognizer()
@@ -248,6 +257,10 @@ def main(qFrame, tmpStatus, qPlayer):
                               name=Voice2Text, args=(qCommand,))
     thread.start()
     # end of voice command
+
+    # keyboard listener to listen key event in background
+    key_lis = keyboard.Listener(on_press=OnPress)
+    key_lis.start()
 
     global start_game, known_face_names, known_face_encodings, prev_frame_time
     missing_time = time.time()
@@ -295,10 +308,10 @@ def main(qFrame, tmpStatus, qPlayer):
         except queue.Empty:
             command = []
             
-        key = cv2.waitKey(1) & 0xFF
+        cv2.waitKey(1)
         # Hit <Space> to capture player image
         # or stare at the camera for 2 seconds(as shown in DispResult and IsWatching functions)
-        if (not start_game) and key == ord(' '):
+        if (not start_game) and key == 'space':
             # Load pictures and learn how to recognize them.
             # Update player information if player already exits
             for index, player_name in enumerate(player_names):
@@ -319,7 +332,7 @@ def main(qFrame, tmpStatus, qPlayer):
 
         # Hit <Enter> on the keyboard to confirm player and start play
         # Voice command with 'start' / 'stop' / 'game' will do the same thing
-        elif HasKeywords(command, ['start', 'stop', 'game']) or key == ord('\r'):
+        elif HasKeywords(command, ['start', 'stop', 'game']) or key == 'enter':
             # Replace known faces to prevent confusion
             known_face_names.clear()
             for index in range(len(player_names)):
@@ -334,7 +347,7 @@ def main(qFrame, tmpStatus, qPlayer):
             qStatus.put("Locating all players. Please sit still.")
 
         # Hit 'r' to restart
-        elif key == ord('r'):
+        elif key == 'r':
             globals()['known_face_names'] = []
             globals()['known_face_encodings'] = []
             globals()['player_encodings']  = []
@@ -344,7 +357,7 @@ def main(qFrame, tmpStatus, qPlayer):
 
             # os.execl(sys.executable, sys.executable, *sys.argv)
         # Hit 'q' or cross button to quit
-        elif key == ord('q') or cv2.getWindowProperty('Casino', cv2.WINDOW_AUTOSIZE) < 0:
+        elif key == 'q' or cv2.getWindowProperty('Casino', cv2.WINDOW_AUTOSIZE) < 0:
             break
 
     # Release handle to the webcam
