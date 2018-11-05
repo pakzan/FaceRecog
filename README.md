@@ -8,8 +8,8 @@ This program requires face_recognition and cv2 library to be installed.
 2. Run the file PreSavedFace.py to encode and store the faces.
 3. Change the HAS_GPU in FaceRecog.py to true to use GPU.
 3. Run the file main.py to recognize the faces.
-4. Press <SPACE> to register current faces or new faces as players.
-5. Press <ENTER> to start the game.
+4. Press SPACE to register current faces or new faces as players.
+5. Press ENTER to start the game.
 6. Press 'r' to restart or 'q' to close the program.
 
 # Additional Information:
