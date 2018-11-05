@@ -274,7 +274,7 @@ def main(qFrame, tmpStatus, qPlayer):
     global start_game, known_face_names, known_face_encodings, prev_frame_time, key
     missing_time = time.time()
     # Load face encodings
-    with open(os.getcwd() + '/classmate/dataset_faces.dat', 'rb') as f:
+    with open(os.getcwd() + '/faces/dataset_faces.dat', 'rb') as f:
         all_face_encodings = pickle.load(f)
 
     # Grab the list of names and the list of encodings

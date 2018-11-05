@@ -5,7 +5,7 @@ import pickle
 
 # Create arrays of known face encodings and their names
 all_face_encodings = {}
-path = os.getcwd() + '/classmate'
+path = os.getcwd() + '/faces'
 for filename in glob.glob(os.path.join(path, '*.jpg')):
     # Load pictures and learn how to recognize them.
     name = os.path.splitext(os.path.basename(filename))[0]
